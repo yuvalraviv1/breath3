@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
+    <title>Breath3 - Belly Motion Audio</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            color: #4da8da;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .status {
+            background: rgba(77, 168, 218, 0.1);
+            border: 1px solid rgba(77, 168, 218, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+            color: #4da8da;
+        }
+
+        .status.error {
+            background: rgba(218, 77, 77, 0.1);
+            border-color: rgba(218, 77, 77, 0.3);
+            color: #da4d4d;
+        }
+
+        .button {
+            width: 100%;
+            padding: 18px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+            font-family: inherit;
+        }
+
+        .button.primary {
+            background: linear-gradient(135deg, #4da8da 0%, #3a8bb8 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(77, 168, 218, 0.4);
+        }
+
+        .button.primary:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 8px rgba(77, 168, 218, 0.3);
+        }
+
+        .button.secondary {
+            background: rgba(77, 168, 218, 0.15);
+            color: #4da8da;
+            border: 1px solid rgba(77, 168, 218, 0.3);
+        }
+
+        .button.secondary:active {
+            background: rgba(77, 168, 218, 0.25);
+        }
+
+        .button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .control-label {
+            display: block;
+            color: #aaa;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .axis-selector {
+            display: flex;
+            gap: 10px;
+        }
+
+        .axis-btn {
+            flex: 1;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .axis-btn.active {
+            background: rgba(77, 168, 218, 0.3);
+            border-color: #4da8da;
+            color: #4da8da;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .checkbox-group label {
+            color: #e0e0e0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .readouts {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .readout {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .readout:last-child {
+            border-bottom: none;
+        }
+
+        .readout-label {
+            color: #888;
+            font-size: 0.9rem;
+        }
+
+        .readout-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #4da8da;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .settings {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .settings.expanded {
+            max-height: 1000px;
+        }
+
+        .settings-toggle {
+            width: 100%;
+            text-align: center;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #aaa;
+            cursor: pointer;
+            margin-bottom: 10px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        .slider-group {
+            margin-bottom: 15px;
+        }
+
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.85rem;
+        }
+
+        .slider-container {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4da8da;
+            cursor: pointer;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4da8da;
+            cursor: pointer;
+            border: none;
+        }
+
+        .slider-value {
+            min-width: 50px;
+            text-align: right;
+            color: #4da8da;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-height: 700px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+            .subtitle {
+                margin-bottom: 1rem;
+            }
+            .button {
+                padding: 14px;
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Breath3</h1>
+        <div class="subtitle">Belly Motion Audio Feedback</div>
+
+        <div id="status" class="status">Tap Start to begin</div>
+
+        <button id="startBtn" class="button primary">Start</button>
+
+        <div id="mainControls" class="hidden">
+            <button id="recalibrateBtn" class="button secondary">Recalibrate</button>
+
+            <div class="controls">
+                <div class="control-group">
+                    <span class="control-label">Sensor Axis</span>
+                    <div class="axis-selector">
+                        <button class="axis-btn" data-axis="x">X</button>
+                        <button class="axis-btn" data-axis="y">Y</button>
+                        <button class="axis-btn active" data-axis="z">Z</button>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="invertCheckbox">
+                        <label for="invertCheckbox">Invert Axis</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="readouts">
+                <div class="readout">
+                    <span class="readout-label">Current Axis</span>
+                    <span class="readout-value" id="currentAxis">Z</span>
+                </div>
+                <div class="readout">
+                    <span class="readout-label">Raw Value</span>
+                    <span class="readout-value" id="rawValue">0.00</span>
+                </div>
+                <div class="readout">
+                    <span class="readout-label">Deviation</span>
+                    <span class="readout-value" id="deviation">0.00</span>
+                </div>
+                <div class="readout">
+                    <span class="readout-label">Frequency</span>
+                    <span class="readout-value" id="frequency">350 Hz</span>
+                </div>
+                <div class="readout">
+                    <span class="readout-label">Volume</span>
+                    <span class="readout-value" id="volume">0.00</span>
+                </div>
+            </div>
+
+            <button id="settingsToggle" class="settings-toggle">⚙️ Advanced Settings</button>
+
+            <div id="settings" class="settings">
+                <div class="controls">
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Min Frequency</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="minFreq" min="80" max="400" value="180" step="10">
+                            <span class="slider-value" id="minFreqValue">180 Hz</span>
+                        </div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Max Frequency</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="maxFreq" min="300" max="800" value="520" step="10">
+                            <span class="slider-value" id="maxFreqValue">520 Hz</span>
+                        </div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Min Volume</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="minGain" min="0" max="0.5" value="0.15" step="0.05">
+                            <span class="slider-value" id="minGainValue">0.15</span>
+                        </div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Max Volume</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="maxGain" min="0.2" max="1.0" value="0.6" step="0.05">
+                            <span class="slider-value" id="maxGainValue">0.6</span>
+                        </div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Smoothing (α)</span>
+                        </div>
+                        <div class="slider-container">
+                            <input type="range" id="smoothing" min="0.05" max="0.5" value="0.15" step="0.05">
+                            <span class="slider-value" id="smoothingValue">0.15</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let audioContext = null;
+        let oscillator = null;
+        let gainNode = null;
+        let isRunning = false;
+        let isCalibrating = false;
+        let calibrationSamples = [];
+        let baseline = 0;
+        let currentAxis = 'z';
+        let invertAxis = false;
+        let smoothedDeviation = 0;
+
+        // Settings
+        let minFreq = 180;
+        let maxFreq = 520;
+        let minGain = 0.15;
+        let maxGain = 0.6;
+        let smoothingFactor = 0.15;
+
+        // DOM elements
+        const statusEl = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const mainControls = document.getElementById('mainControls');
+        const recalibrateBtn = document.getElementById('recalibrateBtn');
+        const axisBtns = document.querySelectorAll('.axis-btn');
+        const invertCheckbox = document.getElementById('invertCheckbox');
+        const currentAxisEl = document.getElementById('currentAxis');
+        const rawValueEl = document.getElementById('rawValue');
+        const deviationEl = document.getElementById('deviation');
+        const frequencyEl = document.getElementById('frequency');
+        const volumeEl = document.getElementById('volume');
+        const settingsToggle = document.getElementById('settingsToggle');
+        const settingsEl = document.getElementById('settings');
+
+        // Settings sliders
+        const minFreqSlider = document.getElementById('minFreq');
+        const maxFreqSlider = document.getElementById('maxFreq');
+        const minGainSlider = document.getElementById('minGain');
+        const maxGainSlider = document.getElementById('maxGain');
+        const smoothingSlider = document.getElementById('smoothing');
+
+        // Initialize Web Audio
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                oscillator = audioContext.createOscillator();
+                gainNode = audioContext.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.value = 350;
+                gainNode.gain.value = 0;
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.start();
+                return true;
+            } catch (e) {
+                showError('Web Audio not supported');
+                return false;
+            }
+        }
+
+        // Request permissions and start
+        async function start() {
+            if (!initAudio()) return;
+
+            // Check for DeviceMotionEvent support
+            if (typeof DeviceMotionEvent === 'undefined') {
+                showError('Motion sensors not available');
+                return;
+            }
+
+            // Request permission on iOS 13+
+            if (typeof DeviceMotionEvent.requestPermission === 'function') {
+                try {
+                    const permission = await DeviceMotionEvent.requestPermission();
+                    if (permission !== 'granted') {
+                        showError('Motion access denied. Please enable in Settings.');
+                        return;
+                    }
+                } catch (e) {
+                    showError('Permission request failed');
+                    return;
+                }
+            }
+
+            // Resume audio context
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            // Start calibration
+            startCalibration();
+
+            // Show controls
+            startBtn.classList.add('hidden');
+            mainControls.classList.remove('hidden');
+        }
+
+        // Calibration
+        function startCalibration() {
+            isCalibrating = true;
+            calibrationSamples = [];
+            smoothedDeviation = 0;
+            gainNode.gain.value = 0;
+
+            updateStatus('Calibrating... 3s remaining');
+
+            // Listen to motion events
+            window.addEventListener('devicemotion', handleMotion);
+
+            // Complete calibration after 3 seconds (60 samples at ~60Hz)
+            let secondsRemaining = 3;
+            const calibrationInterval = setInterval(() => {
+                secondsRemaining--;
+                if (secondsRemaining > 0) {
+                    updateStatus(`Calibrating... ${secondsRemaining}s remaining`);
+                } else {
+                    clearInterval(calibrationInterval);
+                    completeCalibration();
+                }
+            }, 1000);
+        }
+
+        function completeCalibration() {
+            if (calibrationSamples.length === 0) {
+                showError('No sensor data received. Check device orientation.');
+                return;
+            }
+
+            // Calculate baseline
+            baseline = calibrationSamples.reduce((a, b) => a + b, 0) / calibrationSamples.length;
+            isCalibrating = false;
+            isRunning = true;
+
+            updateStatus('Ready - Breathe naturally', false);
+        }
+
+        // Motion handler
+        function handleMotion(event) {
+            if (!event.accelerationIncludingGravity) return;
+
+            const accel = event.accelerationIncludingGravity;
+            let value = 0;
+
+            switch (currentAxis) {
+                case 'x':
+                    value = accel.x || 0;
+                    break;
+                case 'y':
+                    value = accel.y || 0;
+                    break;
+                case 'z':
+                    value = accel.z || 0;
+                    break;
+            }
+
+            if (invertAxis) {
+                value = -value;
+            }
+
+            // Update raw value display
+            rawValueEl.textContent = value.toFixed(2);
+
+            if (isCalibrating) {
+                calibrationSamples.push(value);
+            } else if (isRunning) {
+                // Calculate deviation from baseline
+                const deviation = value - baseline;
+
+                // Apply exponential smoothing
+                smoothedDeviation = smoothingFactor * deviation + (1 - smoothingFactor) * smoothedDeviation;
+
+                // Map to frequency (deviation → pitch)
+                const freqRange = maxFreq - minFreq;
+                const centerFreq = minFreq + freqRange / 2;
+                // Assuming typical acceleration range of ±2 m/s² for belly breathing
+                const normalizedDeviation = Math.max(-1, Math.min(1, smoothedDeviation / 2));
+                const frequency = centerFreq + (normalizedDeviation * freqRange / 2);
+
+                // Map absolute deviation to gain (volume)
+                const absDeviation = Math.abs(smoothedDeviation);
+                const normalizedAbsDeviation = Math.min(1, absDeviation / 2);
+                const gain = minGain + normalizedAbsDeviation * (maxGain - minGain);
+
+                // Update audio
+                oscillator.frequency.value = frequency;
+                gainNode.gain.value = gain;
+
+                // Update display
+                deviationEl.textContent = smoothedDeviation.toFixed(2);
+                frequencyEl.textContent = Math.round(frequency) + ' Hz';
+                volumeEl.textContent = gain.toFixed(2);
+            }
+        }
+
+        // UI helpers
+        function updateStatus(message, isError = false) {
+            statusEl.textContent = message;
+            if (isError) {
+                statusEl.classList.add('error');
+            } else {
+                statusEl.classList.remove('error');
+            }
+        }
+
+        function showError(message) {
+            updateStatus(message, true);
+        }
+
+        // Event listeners
+        startBtn.addEventListener('click', start);
+
+        recalibrateBtn.addEventListener('click', () => {
+            if (isRunning || isCalibrating) {
+                startCalibration();
+            }
+        });
+
+        axisBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                axisBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentAxis = btn.dataset.axis;
+                currentAxisEl.textContent = currentAxis.toUpperCase();
+
+                // Recalibrate when axis changes
+                if (isRunning || isCalibrating) {
+                    startCalibration();
+                }
+            });
+        });
+
+        invertCheckbox.addEventListener('change', (e) => {
+            invertAxis = e.target.checked;
+            // Recalibrate when invert changes
+            if (isRunning || isCalibrating) {
+                startCalibration();
+            }
+        });
+
+        settingsToggle.addEventListener('click', () => {
+            settingsEl.classList.toggle('expanded');
+        });
+
+        // Settings sliders
+        minFreqSlider.addEventListener('input', (e) => {
+            minFreq = parseInt(e.target.value);
+            document.getElementById('minFreqValue').textContent = minFreq + ' Hz';
+        });
+
+        maxFreqSlider.addEventListener('input', (e) => {
+            maxFreq = parseInt(e.target.value);
+            document.getElementById('maxFreqValue').textContent = maxFreq + ' Hz';
+        });
+
+        minGainSlider.addEventListener('input', (e) => {
+            minGain = parseFloat(e.target.value);
+            document.getElementById('minGainValue').textContent = minGain.toFixed(2);
+        });
+
+        maxGainSlider.addEventListener('input', (e) => {
+            maxGain = parseFloat(e.target.value);
+            document.getElementById('maxGainValue').textContent = maxGain.toFixed(2);
+        });
+
+        smoothingSlider.addEventListener('input', (e) => {
+            smoothingFactor = parseFloat(e.target.value);
+            document.getElementById('smoothingValue').textContent = smoothingFactor.toFixed(2);
+        });
+
+        // Prevent scrolling on iOS
+        document.body.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
