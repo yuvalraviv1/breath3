@@ -15,6 +15,9 @@
 - On load, request `DeviceMotionEvent.requestPermission()`
 - Must be called in user gesture handler (tap) to resume AudioContext per iOS requirements
 - Start streaming motion at ~60 Hz after permission granted
+- **Wake Lock API**: Request screen wake lock to prevent phone from sleeping during use
+  - Note: App will not work in lock mode (iOS restrictions on DeviceMotion and Web Audio when locked)
+  - Wake Lock keeps screen on during breathing sessions
 
 ### Sensor Input & Axis Selection
 - Use `accelerationIncludingGravity` from DeviceMotionEvent
@@ -24,12 +27,13 @@
 - Display current axis name and raw value in UI
 
 ### Calibration
-- **Auto-calibration on start**: capture baseline over first 3 seconds (60 samples)
+- **Auto-calibration on start**: capture baseline over first 10 seconds (~600 samples)
   - Calculate mean of selected axis during calibration window
   - Store as zero-point reference
+  - **Tick sound feedback**: plays 800Hz tick sound every second during calibration for audio feedback
 - **Deviation calculation**: all subsequent readings are relative to baseline (current - baseline)
 - **Recalibrate button**: allows user to reset baseline if they shift position
-- Display calibration status ("Calibrating... 2s remaining" / "Ready")
+- Display calibration status ("Calibrating... Xs remaining" / "Ready")
 
 ### Signal Processing
 - **Magnitude calculation**: Use deviation from baseline (current_value - baseline_value)
@@ -43,10 +47,12 @@
   - Positive deviation (inhale) → higher pitch
   - Negative deviation (exhale) → lower pitch
   - Center (baseline) → ~350 Hz (middle of range)
+  - **Sensitivity**: Calibrated for subtle movements (±0.5 m/s² range, 4x more sensitive than typical)
 - **Gain (volume)**: Map absolute magnitude of deviation to 0.15–0.6 gain range
   - Larger movement → louder
   - Still/minimal movement → softer but audible (0.15 floor prevents silence)
   - Clamp to avoid harshness above 0.6
+  - **Sensitivity**: Same ±0.5 m/s² range for detecting subtle breathing
 - Make ranges adjustable via UI sliders if initial sensitivity feels off
 
 ### Audio Engine
@@ -95,11 +101,13 @@
 4. **Wire Start button**
    - Request `DeviceMotionEvent.requestPermission()`
    - Resume AudioContext
-   - Start calibration process (3-second window)
+   - Request Wake Lock to keep screen on
+   - Start calibration process (10-second window)
    - Begin devicemotion event listening
 
 5. **Implement calibration**
-   - Collect axis samples for 3 seconds
+   - Collect axis samples for 10 seconds (~600 samples)
+   - Play tick sound (800Hz) every second for feedback
    - Calculate baseline mean for selected axis
    - Update UI status
    - After calibration, enable main processing loop
@@ -108,8 +116,8 @@
    - Read selected axis from accelerationIncludingGravity
    - Calculate deviation from baseline
    - Apply exponential smoothing
-   - Map deviation → frequency (180-520 Hz)
-   - Map absolute deviation → gain (0.15-0.6)
+   - Map deviation → frequency (180-520 Hz, ±0.5 m/s² sensitivity for subtle movements)
+   - Map absolute deviation → gain (0.15-0.6, same sensitivity)
    - Update oscillator.frequency.value and gainNode.gain.value
    - Update UI readouts
 
