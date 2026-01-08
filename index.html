@@ -517,6 +517,21 @@
                 await audioContext.resume();
             }
 
+            // Play a brief startup sound to ensure audio routing to speaker
+            // This helps iOS establish the audio route before calibration
+            const startupOsc = audioContext.createOscillator();
+            const startupGain = audioContext.createGain();
+            startupOsc.connect(startupGain);
+            startupGain.connect(audioContext.destination);
+            startupOsc.frequency.value = 440;
+            startupGain.gain.value = 0.2;
+            startupOsc.start();
+            startupGain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            startupOsc.stop(audioContext.currentTime + 0.3);
+
+            // Small delay to let startup sound play
+            await new Promise(resolve => setTimeout(resolve, 400));
+
             // Request wake lock to keep screen on
             await requestWakeLock();
 
