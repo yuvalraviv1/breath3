@@ -704,10 +704,9 @@
 
         // Motion handler
         function handleMotion(event) {
-            // Prefer acceleration (without gravity) for better flat phone detection
-            // Fall back to accelerationIncludingGravity if unavailable
-            const accel = event.acceleration || event.accelerationIncludingGravity;
-            if (!accel) return;
+            if (!event.accelerationIncludingGravity) return;
+
+            const accel = event.accelerationIncludingGravity;
             let value = 0;
 
             switch (currentAxis) {
