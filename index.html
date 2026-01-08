@@ -339,6 +339,24 @@
             display: none;
         }
 
+        .activity-indicator {
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .activity-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4da8da 0%, #5bd4a8 100%);
+            width: 0%;
+            transition: width 0.1s ease;
+            border-radius: 4px;
+        }
+
         @media (max-height: 700px) {
             h1 {
                 font-size: 1.5rem;
@@ -364,6 +382,10 @@
 
         <div id="mainControls" class="hidden">
             <button id="recalibrateBtn" class="button secondary">Recalibrate</button>
+
+            <div class="activity-indicator">
+                <div id="activityBar" class="activity-bar"></div>
+            </div>
 
             <div class="controls">
                 <div class="control-group">
@@ -463,8 +485,18 @@
                     <span>Smoothing (α)</span>
                 </div>
                 <div class="slider-container">
-                    <input type="range" id="smoothing" min="0.05" max="0.5" value="0.15" step="0.05">
-                    <span class="slider-value" id="smoothingValue">0.15</span>
+                    <input type="range" id="smoothing" min="0.05" max="0.5" value="0.1" step="0.05">
+                    <span class="slider-value" id="smoothingValue">0.10</span>
+                </div>
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Sensitivity Multiplier</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="sensitivity" min="0.5" max="10" value="3.0" step="0.5">
+                    <span class="slider-value" id="sensitivityValue">3.0x</span>
                 </div>
             </div>
         </div>
@@ -489,7 +521,8 @@
         let maxFreq = 520;
         let minGain = 0.15;
         let maxGain = 0.6;
-        let smoothingFactor = 0.15;
+        let smoothingFactor = 0.1; // Reduced for faster response
+        let sensitivity = 3.0; // Sensitivity multiplier (higher = more sensitive)
 
         // DOM elements
         const statusEl = document.getElementById('status');
@@ -506,6 +539,7 @@
         const settingsToggle = document.getElementById('settingsToggle');
         const settingsModal = document.getElementById('settingsModal');
         const modalClose = document.getElementById('modalClose');
+        const activityBar = document.getElementById('activityBar');
 
         // Settings sliders
         const minFreqSlider = document.getElementById('minFreq');
@@ -513,6 +547,7 @@
         const minGainSlider = document.getElementById('minGain');
         const maxGainSlider = document.getElementById('maxGain');
         const smoothingSlider = document.getElementById('smoothing');
+        const sensitivitySlider = document.getElementById('sensitivity');
 
         // Initialize Web Audio
         function initAudio() {
@@ -702,16 +737,19 @@
                 // Apply exponential smoothing
                 smoothedDeviation = smoothingFactor * deviation + (1 - smoothingFactor) * smoothedDeviation;
 
+                // Apply sensitivity multiplier to deviation
+                const sensitiveDeviation = smoothedDeviation * sensitivity;
+
                 // Map to frequency (deviation → pitch)
                 const freqRange = maxFreq - minFreq;
                 const centerFreq = minFreq + freqRange / 2;
-                // Increased sensitivity for subtle belly breathing (±0.5 m/s² range)
-                const normalizedDeviation = Math.max(-1, Math.min(1, smoothedDeviation / 0.5));
+                // High sensitivity for subtle belly breathing (±0.3 m/s² base range + multiplier)
+                const normalizedDeviation = Math.max(-1, Math.min(1, sensitiveDeviation / 0.3));
                 const frequency = centerFreq + (normalizedDeviation * freqRange / 2);
 
                 // Map absolute deviation to gain (volume)
-                const absDeviation = Math.abs(smoothedDeviation);
-                const normalizedAbsDeviation = Math.min(1, absDeviation / 0.5);
+                const absDeviation = Math.abs(sensitiveDeviation);
+                const normalizedAbsDeviation = Math.min(1, absDeviation / 0.3);
                 const gain = minGain + normalizedAbsDeviation * (maxGain - minGain);
 
                 // Update audio
@@ -722,6 +760,10 @@
                 deviationEl.textContent = smoothedDeviation.toFixed(2);
                 frequencyEl.textContent = Math.round(frequency) + ' Hz';
                 volumeEl.textContent = gain.toFixed(2);
+
+                // Update activity indicator
+                const activityPercent = normalizedAbsDeviation * 100;
+                activityBar.style.width = activityPercent + '%';
             }
         }
 
@@ -810,6 +852,11 @@
         smoothingSlider.addEventListener('input', (e) => {
             smoothingFactor = parseFloat(e.target.value);
             document.getElementById('smoothingValue').textContent = smoothingFactor.toFixed(2);
+        });
+
+        sensitivitySlider.addEventListener('input', (e) => {
+            sensitivity = parseFloat(e.target.value);
+            document.getElementById('sensitivityValue').textContent = sensitivity.toFixed(1) + 'x';
         });
 
         // Prevent scrolling on iOS
