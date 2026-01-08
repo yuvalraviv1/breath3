@@ -445,8 +445,8 @@
                     <span>Min Frequency</span>
                 </div>
                 <div class="slider-container">
-                    <input type="range" id="minFreq" min="80" max="400" value="180" step="10">
-                    <span class="slider-value" id="minFreqValue">180 Hz</span>
+                    <input type="range" id="minFreq" min="80" max="400" value="80" step="10">
+                    <span class="slider-value" id="minFreqValue">80 Hz</span>
                 </div>
             </div>
 
@@ -455,8 +455,8 @@
                     <span>Max Frequency</span>
                 </div>
                 <div class="slider-container">
-                    <input type="range" id="maxFreq" min="300" max="800" value="520" step="10">
-                    <span class="slider-value" id="maxFreqValue">520 Hz</span>
+                    <input type="range" id="maxFreq" min="300" max="800" value="700" step="10">
+                    <span class="slider-value" id="maxFreqValue">700 Hz</span>
                 </div>
             </div>
 
@@ -517,8 +517,8 @@
         let wakeLock = null;
 
         // Settings
-        let minFreq = 180;
-        let maxFreq = 520;
+        let minFreq = 80;
+        let maxFreq = 700;
         let minGain = 0.15;
         let maxGain = 0.6;
         let smoothingFactor = 0.1; // Reduced for faster response
