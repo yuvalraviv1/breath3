@@ -201,16 +201,6 @@
             font-variant-numeric: tabular-nums;
         }
 
-        .settings {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease;
-        }
-
-        .settings.expanded {
-            max-height: 1000px;
-        }
-
         .settings-toggle {
             width: 100%;
             text-align: center;
@@ -223,6 +213,72 @@
             margin-bottom: 10px;
             font-family: inherit;
             font-size: 0.9rem;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+            border: 1px solid rgba(77, 168, 218, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #4da8da;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #aaa;
+            font-size: 1.8rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
         }
 
         .slider-group {
@@ -351,58 +407,64 @@
             </div>
 
             <button id="settingsToggle" class="settings-toggle">⚙️ Advanced Settings</button>
+        </div>
+    </div>
 
-            <div id="settings" class="settings">
-                <div class="controls">
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Min Frequency</span>
-                        </div>
-                        <div class="slider-container">
-                            <input type="range" id="minFreq" min="80" max="400" value="180" step="10">
-                            <span class="slider-value" id="minFreqValue">180 Hz</span>
-                        </div>
-                    </div>
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Advanced Settings</h2>
+                <button id="modalClose" class="modal-close">×</button>
+            </div>
 
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Max Frequency</span>
-                        </div>
-                        <div class="slider-container">
-                            <input type="range" id="maxFreq" min="300" max="800" value="520" step="10">
-                            <span class="slider-value" id="maxFreqValue">520 Hz</span>
-                        </div>
-                    </div>
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Min Frequency</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="minFreq" min="80" max="400" value="180" step="10">
+                    <span class="slider-value" id="minFreqValue">180 Hz</span>
+                </div>
+            </div>
 
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Min Volume</span>
-                        </div>
-                        <div class="slider-container">
-                            <input type="range" id="minGain" min="0" max="0.5" value="0.15" step="0.05">
-                            <span class="slider-value" id="minGainValue">0.15</span>
-                        </div>
-                    </div>
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Max Frequency</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="maxFreq" min="300" max="800" value="520" step="10">
+                    <span class="slider-value" id="maxFreqValue">520 Hz</span>
+                </div>
+            </div>
 
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Max Volume</span>
-                        </div>
-                        <div class="slider-container">
-                            <input type="range" id="maxGain" min="0.2" max="1.0" value="0.6" step="0.05">
-                            <span class="slider-value" id="maxGainValue">0.6</span>
-                        </div>
-                    </div>
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Min Volume</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="minGain" min="0" max="0.5" value="0.15" step="0.05">
+                    <span class="slider-value" id="minGainValue">0.15</span>
+                </div>
+            </div>
 
-                    <div class="slider-group">
-                        <div class="slider-label">
-                            <span>Smoothing (α)</span>
-                        </div>
-                        <div class="slider-container">
-                            <input type="range" id="smoothing" min="0.05" max="0.5" value="0.15" step="0.05">
-                            <span class="slider-value" id="smoothingValue">0.15</span>
-                        </div>
-                    </div>
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Max Volume</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="maxGain" min="0.2" max="1.0" value="0.6" step="0.05">
+                    <span class="slider-value" id="maxGainValue">0.6</span>
+                </div>
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Smoothing (α)</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="smoothing" min="0.05" max="0.5" value="0.15" step="0.05">
+                    <span class="slider-value" id="smoothingValue">0.15</span>
                 </div>
             </div>
         </div>
@@ -442,7 +504,8 @@
         const frequencyEl = document.getElementById('frequency');
         const volumeEl = document.getElementById('volume');
         const settingsToggle = document.getElementById('settingsToggle');
-        const settingsEl = document.getElementById('settings');
+        const settingsModal = document.getElementById('settingsModal');
+        const modalClose = document.getElementById('modalClose');
 
         // Settings sliders
         const minFreqSlider = document.getElementById('minFreq');
@@ -707,8 +770,20 @@
             }
         });
 
+        // Modal controls
         settingsToggle.addEventListener('click', () => {
-            settingsEl.classList.toggle('expanded');
+            settingsModal.classList.add('active');
+        });
+
+        modalClose.addEventListener('click', () => {
+            settingsModal.classList.remove('active');
+        });
+
+        // Close modal when clicking outside
+        settingsModal.addEventListener('click', (e) => {
+            if (e.target === settingsModal) {
+                settingsModal.classList.remove('active');
+            }
         });
 
         // Settings sliders
