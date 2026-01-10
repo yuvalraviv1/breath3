@@ -495,8 +495,8 @@
                     <span>Sensitivity Multiplier</span>
                 </div>
                 <div class="slider-container">
-                    <input type="range" id="sensitivity" min="0.5" max="10" value="3.0" step="0.5">
-                    <span class="slider-value" id="sensitivityValue">3.0x</span>
+                    <input type="range" id="sensitivity" min="0.1" max="10" value="0.5" step="0.1">
+                    <span class="slider-value" id="sensitivityValue">0.5x</span>
                 </div>
             </div>
         </div>
@@ -509,6 +509,7 @@
         let gainNode = null;
         let isRunning = false;
         let isCalibrating = false;
+        let calibrationCollecting = false; // Start collecting samples after initial 3 seconds
         let calibrationSamples = [];
         let baseline = 0;
         let currentAxis = 'z';
@@ -522,7 +523,7 @@
         let minGain = 0.15;
         let maxGain = 0.6;
         let smoothingFactor = 0.1; // Reduced for faster response
-        let sensitivity = 3.0; // Sensitivity multiplier (higher = more sensitive)
+        let sensitivity = 0.5; // Sensitivity multiplier (higher = more sensitive)
 
         // DOM elements
         const statusEl = document.getElementById('status');
@@ -662,6 +663,7 @@
         // Calibration
         function startCalibration() {
             isCalibrating = true;
+            calibrationCollecting = false; // Don't collect samples yet
             calibrationSamples = [];
             smoothedDeviation = 0;
             gainNode.gain.value = 0;
@@ -679,6 +681,12 @@
             const calibrationInterval = setInterval(() => {
                 secondsRemaining--;
                 playTick(); // Play tick each second
+
+                // Start collecting samples after 3 seconds (when secondsRemaining = 7)
+                if (secondsRemaining === 7) {
+                    calibrationCollecting = true;
+                }
+
                 if (secondsRemaining > 0) {
                     updateStatus(`Calibrating... ${secondsRemaining}s remaining`);
                 } else {
@@ -728,7 +736,7 @@
             // Update raw value display
             rawValueEl.textContent = value.toFixed(2);
 
-            if (isCalibrating) {
+            if (isCalibrating && calibrationCollecting) {
                 calibrationSamples.push(value);
             } else if (isRunning) {
                 // Calculate deviation from baseline
