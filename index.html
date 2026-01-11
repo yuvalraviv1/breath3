@@ -684,7 +684,7 @@
                 return;
             }
 
-            // Request permission on iOS 13+
+            // Request permission on iOS 13+ (Android doesn't require explicit permission)
             if (typeof DeviceMotionEvent.requestPermission === 'function') {
                 try {
                     const permission = await DeviceMotionEvent.requestPermission();
@@ -697,6 +697,7 @@
                     return;
                 }
             }
+            // On Android, DeviceMotionEvent is available without explicit permission request
 
             // Resume audio context
             if (audioContext.state === 'suspended') {
