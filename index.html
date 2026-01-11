@@ -384,7 +384,6 @@
 <body>
     <div class="container">
         <h1>Breath3</h1>
-        <div class="subtitle">PCA-Based Motion Audio</div>
 
         <div id="status" class="status">Tap Start to begin</div>
 
@@ -400,53 +399,34 @@
 
             <div class="controls">
                 <div class="control-group">
-                    <span class="control-label">PCA Components</span>
-                    <div id="pcaInfo" style="font-size: 0.85rem; color: #4da8da; padding: 8px; background: rgba(77, 168, 218, 0.1); border-radius: 6px; font-family: 'Courier New', monospace;">
-                        [-, -, -]
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <span class="control-label">Axis Contributions</span>
+                    <span class="control-label">Raw Axis Activity</span>
                     <div id="axisWeights" style="display: flex; flex-direction: column; gap: 8px;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="width: 20px; color: #888;">X:</span>
                             <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; position: relative;">
-                                <div id="barX" style="position: absolute; height: 100%; background: #4da8da; border-radius: 3px; width: 0%; transition: width 0.3s;"></div>
+                                <div id="barX" style="position: absolute; height: 100%; background: #4da8da; border-radius: 3px; width: 0%; transition: width 0.2s;"></div>
                             </div>
-                            <span id="weightX" style="width: 50px; text-align: right; color: #4da8da; font-size: 0.85rem;">0.00</span>
+                            <span id="weightX" style="width: 60px; text-align: right; color: #4da8da; font-size: 0.85rem;">0.00</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="width: 20px; color: #888;">Y:</span>
                             <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; position: relative;">
-                                <div id="barY" style="position: absolute; height: 100%; background: #5bd4a8; border-radius: 3px; width: 0%; transition: width 0.3s;"></div>
+                                <div id="barY" style="position: absolute; height: 100%; background: #5bd4a8; border-radius: 3px; width: 0%; transition: width 0.2s;"></div>
                             </div>
-                            <span id="weightY" style="width: 50px; text-align: right; color: #5bd4a8; font-size: 0.85rem;">0.00</span>
+                            <span id="weightY" style="width: 60px; text-align: right; color: #5bd4a8; font-size: 0.85rem;">0.00</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="width: 20px; color: #888;">Z:</span>
                             <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; position: relative;">
-                                <div id="barZ" style="position: absolute; height: 100%; background: #da4d9a; border-radius: 3px; width: 0%; transition: width 0.3s;"></div>
+                                <div id="barZ" style="position: absolute; height: 100%; background: #da4d9a; border-radius: 3px; width: 0%; transition: width 0.2s;"></div>
                             </div>
-                            <span id="weightZ" style="width: 50px; text-align: right; color: #da4d9a; font-size: 0.85rem;">0.00</span>
+                            <span id="weightZ" style="width: 60px; text-align: right; color: #da4d9a; font-size: 0.85rem;">0.00</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div class="readouts">
-                <div class="readout">
-                    <span class="readout-label">Raw X</span>
-                    <span class="readout-value" id="rawX">0.00</span>
-                </div>
-                <div class="readout">
-                    <span class="readout-label">Raw Y</span>
-                    <span class="readout-value" id="rawY">0.00</span>
-                </div>
-                <div class="readout">
-                    <span class="readout-label">Raw Z</span>
-                    <span class="readout-value" id="rawZ">0.00</span>
-                </div>
                 <div class="readout">
                     <span class="readout-label">PCA Signal</span>
                     <span class="readout-value" id="rawValue">0.00</span>
@@ -637,16 +617,12 @@
         const settingsModal = document.getElementById('settingsModal');
         const modalClose = document.getElementById('modalClose');
         const activityBar = document.getElementById('activityBar');
-        const pcaInfo = document.getElementById('pcaInfo');
         const barX = document.getElementById('barX');
         const barY = document.getElementById('barY');
         const barZ = document.getElementById('barZ');
         const weightX = document.getElementById('weightX');
         const weightY = document.getElementById('weightY');
         const weightZ = document.getElementById('weightZ');
-        const rawX = document.getElementById('rawX');
-        const rawY = document.getElementById('rawY');
-        const rawZ = document.getElementById('rawZ');
         const windowMinEl = document.getElementById('windowMin');
         const windowMaxEl = document.getElementById('windowMax');
         const windowMedianEl = document.getElementById('windowMedian');
@@ -886,7 +862,7 @@
             principalComponent = powerIteration(cov);
 
             // 5. Update UI with PCA info
-            updatePCADisplay();
+
         }
 
         // Power iteration algorithm to find dominant eigenvector
@@ -919,24 +895,6 @@
             return pc[0] * x + pc[1] * y + pc[2] * z;
         }
 
-        // Update PCA display in UI
-        function updatePCADisplay() {
-            const pc = principalComponent;
-            pcaInfo.textContent = `[${pc[0].toFixed(3)}, ${pc[1].toFixed(3)}, ${pc[2].toFixed(3)}]`;
-
-            // Update weights and bars
-            const absWeights = [Math.abs(pc[0]), Math.abs(pc[1]), Math.abs(pc[2])];
-            const maxWeight = Math.max(...absWeights);
-
-            weightX.textContent = pc[0].toFixed(3);
-            weightY.textContent = pc[1].toFixed(3);
-            weightZ.textContent = pc[2].toFixed(3);
-
-            barX.style.width = ((absWeights[0] / maxWeight) * 100) + '%';
-            barY.style.width = ((absWeights[1] / maxWeight) * 100) + '%';
-            barZ.style.width = ((absWeights[2] / maxWeight) * 100) + '%';
-        }
-
         // Update sliding window with new PCA signal sample
         function updateSlidingWindow(signalValue) {
             const now = Date.now();
@@ -964,6 +922,21 @@
             }
         }
 
+        function updateRawAxisDisplay(x, y, z) {
+            const absX = Math.abs(x);
+            const absY = Math.abs(y);
+            const absZ = Math.abs(z);
+            const maxVal = Math.max(1, absX, absY, absZ);
+
+            barX.style.width = ((absX / maxVal) * 100) + '%';
+            barY.style.width = ((absY / maxVal) * 100) + '%';
+            barZ.style.width = ((absZ / maxVal) * 100) + '%';
+
+            weightX.textContent = x.toFixed(2);
+            weightY.textContent = y.toFixed(2);
+            weightZ.textContent = z.toFixed(2);
+        }
+
         // Motion handler
         function handleMotion(event) {
             if (!event.accelerationIncludingGravity) return;
@@ -973,10 +946,8 @@
             const y = accel.y || 0;
             const z = accel.z || 0;
 
-            // Display raw accelerometer values
-            rawX.textContent = x.toFixed(2);
-            rawY.textContent = y.toFixed(2);
-            rawZ.textContent = z.toFixed(2);
+            // Update raw axis bars
+            updateRawAxisDisplay(x, y, z);
 
             if (isCalibrating && calibrationCollecting) {
                 // Collect 3D samples during calibration

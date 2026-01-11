@@ -1,6 +1,6 @@
-# Belly Motion Audio Plan
+# Breath3 - PCA-Based Motion Audio
 
-- Goal: single-page HTML/JS that runs on iPhone Safari, reads belly motion via `DeviceMotionEvent`, and produces a continuous soft sine tone with pitch/volume driven by movement (live feedback, no external assets).
+- Goal: single-page HTML/JS that runs on iPhone Safari, reads 3-axis motion via `DeviceMotionEvent`, applies Principal Component Analysis (PCA) to find dominant movement direction, and produces a continuous soft sine tone with pitch/volume driven by the PCA signal (live feedback, no external assets).
 
 ## Architecture
 
@@ -19,41 +19,45 @@
   - Note: App will not work in lock mode (iOS restrictions on DeviceMotion and Web Audio when locked)
   - Wake Lock keeps screen on during breathing sessions
 
-### Sensor Input & Axis Selection
-- Use `accelerationIncludingGravity` from DeviceMotionEvent
-- **Primary axis**: Z-axis (perpendicular to screen - typical belly breathing orientation when phone laid on torso)
-- **Fallback**: Auto-detect strongest signal across X/Y/Z during first 2 seconds
-- Manual axis selector (X/Y/Z toggle) + invert toggle for reversed direction
-- Display current axis name and raw value in UI
+### Sensor Input & PCA Analysis
+- Use `accelerationIncludingGravity` from DeviceMotionEvent (3-axis: X, Y, Z)
+- **PCA Calibration**: During 10-second calibration, collect 3D samples and compute Principal Component Analysis
+- **Dominant Direction**: PCA automatically finds the direction of maximum variance (dominant movement pattern)
+- **Projection**: Real-time motion is projected onto the principal component for a single signal
+- **Adaptive Range**: Sliding window (3-30s) tracks signal statistics for dynamic range adjustment
+- Display raw X/Y/Z values, PCA components, and axis contribution weights in UI
 
 ### Calibration
-- **Auto-calibration on start**: capture baseline over first 10 seconds (~600 samples)
-  - Calculate mean of selected axis during calibration window
-  - Store as zero-point reference
-  - **Tick sound feedback**: plays 800Hz tick sound every second during calibration for audio feedback
-- **Deviation calculation**: all subsequent readings are relative to baseline (current - baseline)
-- **Recalibrate button**: allows user to reset baseline if they shift position
+- **PCA Calibration**: 10-second calibration with 3D sample collection (~600 samples)
+  - First 3 seconds: stabilization (no collection)
+  - Next 7 seconds: collect 3-axis acceleration data
+  - **Tick sound feedback**: plays 800Hz tick sound every second during calibration
+- **PCA Computation**: Calculate covariance matrix and dominant eigenvector (principal component)
+- **Baseline Signal**: Project calibration samples onto PCA and compute mean as baseline
+- **Recalibrate button**: Allows user to reset PCA and baseline if they shift position
 - Display calibration status ("Calibrating... Xs remaining" / "Ready")
 
 ### Signal Processing
-- **Magnitude calculation**: Use deviation from baseline (current_value - baseline_value)
-  - Positive deviation = belly rising (inhale), negative = belly falling (exhale)
-  - Absolute value determines volume intensity
-- **Filtering**: Exponential moving average (α = 0.15) to smooth jitter for both pitch and volume signals
+- **PCA Projection**: Real-time 3D acceleration projected onto principal component
+- **Adaptive Range**: Sliding window (configurable 3-30s) tracks min/max/median for dynamic range
+- **Deviation calculation**: Signal deviation from window median (current - median)
+- **Filtering**: Exponential moving average (α = 0.1, configurable) to smooth jitter
   - `smoothed = α × new_value + (1 - α) × smoothed`
+- **Sensitivity**: Multiplier (0.1-10x) for fine-tuning response to subtle movements
 
 ### Mapping
-- **Frequency (pitch)**: Map smoothed deviation to 180–520 Hz range
-  - Positive deviation (inhale) → higher pitch
-  - Negative deviation (exhale) → lower pitch
-  - Center (baseline) → ~350 Hz (middle of range)
-  - **Sensitivity**: Calibrated for subtle movements (±0.5 m/s² range, 4x more sensitive than typical)
-- **Gain (volume)**: Map absolute magnitude of deviation to 0.15–0.6 gain range
+- **Frequency (pitch)**: Map smoothed deviation to configurable frequency range (50-700 Hz)
+  - Default: 50-420 Hz (center ~235 Hz)
+  - Positive deviation → higher pitch (configurable inversion)
+  - Negative deviation → lower pitch
+  - **Adaptive**: Uses window median as center, window range for normalization
+- **Gain (volume)**: Map absolute deviation to configurable gain range (0.15-1.0)
+  - Default: 0.15-0.6 (prevents silence, avoids harshness)
   - Larger movement → louder
-  - Still/minimal movement → softer but audible (0.15 floor prevents silence)
-  - Clamp to avoid harshness above 0.6
-  - **Sensitivity**: Same ±0.5 m/s² range for detecting subtle breathing
-- Make ranges adjustable via UI sliders if initial sensitivity feels off
+  - Still/minimal movement → softer but audible
+  - **Adaptive**: Normalized to window range for consistent response
+- **Stereo Panning**: Optional stereo based on breathing phase (configurable width 0-1)
+- All ranges adjustable via UI sliders in Advanced Settings modal
 
 ### Audio Engine
 - Web Audio API with one sine `OscillatorNode` feeding a `GainNode` to destination
@@ -65,16 +69,27 @@
 - **Main controls**:
   - Large "Start" button (requests permissions + starts audio)
   - Recalibrate button
-  - Axis selector (X/Y/Z) + invert checkbox
+  - Stereo toggle (On/Off)
+  - Activity indicator bar
+- **PCA Information**:
+  - Principal component vector display
+  - Axis contribution weights with visual bars
+  - Raw X/Y/Z accelerometer values
 - **Live readouts**:
   - Calibration status
-  - Current axis and raw value
-  - Smoothed deviation from baseline
+  - PCA signal value
+  - Smoothed deviation from median
   - Current frequency (Hz) and gain
-- **Optional adjustments** (collapsed by default):
+  - Stereo pan position (C/L/R/LL/RR)
+  - Window statistics (min/max/median)
+- **Advanced Settings** (modal):
   - Frequency range sliders (min/max Hz)
   - Volume range sliders (min/max gain)
   - Smoothing factor (α)
+  - Sensitivity multiplier
+  - Window size (3-30s)
+  - Frequency direction inversion
+  - Stereo width control
 
 ### Error Handling
 - Detect missing DeviceMotionEvent support → "Motion sensors not available"
@@ -105,27 +120,30 @@
    - Start calibration process (10-second window)
    - Begin devicemotion event listening
 
-5. **Implement calibration**
-   - Collect axis samples for 10 seconds (~600 samples)
-   - Play tick sound (800Hz) every second for feedback
-   - Calculate baseline mean for selected axis
-   - Update UI status
-   - After calibration, enable main processing loop
+5. **Implement PCA calibration**
+    - Collect 3D samples for 10 seconds (~600 samples)
+    - Play tick sound (800Hz) every second for feedback
+    - Compute PCA: mean vector, covariance matrix, dominant eigenvector
+    - Calculate baseline signal from PCA projection
+    - Update UI with PCA components and axis weights
+    - After calibration, enable main processing loop
 
 6. **Implement devicemotion handler**
-   - Read selected axis from accelerationIncludingGravity
-   - Calculate deviation from baseline
-   - Apply exponential smoothing
-   - Map deviation → frequency (180-520 Hz, ±0.5 m/s² sensitivity for subtle movements)
-   - Map absolute deviation → gain (0.15-0.6, same sensitivity)
-   - Update oscillator.frequency.value and gainNode.gain.value
-   - Update UI readouts
+    - Read X/Y/Z from accelerationIncludingGravity
+    - Project onto principal component for single signal
+    - Update sliding window and calculate statistics
+    - Calculate deviation from window median
+    - Apply exponential smoothing
+    - Map deviation → frequency (adaptive range based on window)
+    - Map absolute deviation → gain (adaptive range)
+    - Update oscillator.frequency.value and gainNode.gain.value
+    - Handle stereo panning if enabled
+    - Update all UI readouts
 
 7. **Add controls**
-   - Axis selector (X/Y/Z radio buttons)
-   - Invert toggle checkbox
-   - Recalibrate button → reset baseline
-   - Range sliders (collapsed/expandable)
+    - Recalibrate button → reset PCA and baseline
+    - Stereo toggle → enable/disable stereo panning
+    - Advanced Settings modal with all parameter sliders
 
 8. **Test on iPhone**
    - Push to GitHub: `git push -u origin main`
@@ -135,6 +153,24 @@
    - Adjust default ranges if sensitivity is off
    - Test recalibration after position change
 
+## Technical Implementation
+
+### PCA Algorithm
+- **Power Iteration**: 50 iterations to find dominant eigenvector of 3x3 covariance matrix
+- **Real-time Projection**: `signal = pc[0]*x + pc[1]*y + pc[2]*z`
+- **Adaptive Normalization**: Dynamic range based on sliding window statistics
+
+### Audio Engine
+- **Web Audio API**: Single sine oscillator → gain node → stereo panner → destination
+- **Startup Sound**: Brief 440Hz tone to establish iOS audio routing
+- **Wake Lock**: Screen wake lock to prevent sleep during sessions
+
+### Performance Optimizations
+- **Efficient PCA**: Power iteration vs full eigenvalue decomposition
+- **Sliding Window**: O(1) updates with circular buffer behavior
+- **Exponential Smoothing**: Minimal computational overhead
+
 ## Critical Files
-- `index.html` - Single-file application (HTML + inline CSS/JS)
+- `index.html` - Single-file application (HTML + inline CSS/JS, 1186 lines)
 - `.gitignore` - Exclude OS artifacts
+- `PLAN.md` - This documentation file
