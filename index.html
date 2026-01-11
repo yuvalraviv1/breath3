@@ -551,6 +551,16 @@
                     <span class="slider-value" id="windowSizeValue">20s</span>
                 </div>
             </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Frequency Direction</span>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="invertFrequency">
+                    <label for="invertFrequency">Invert (Inhale = High Frequency)</label>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -588,6 +598,7 @@
         let maxGain = 0.6;
         let smoothingFactor = 0.1; // Reduced for faster response
         let sensitivity = 0.1; // Sensitivity multiplier (higher = more sensitive)
+        let invertFrequency = false; // Invert frequency mapping (inhale = high freq)
 
         // DOM elements
         const statusEl = document.getElementById('status');
@@ -624,6 +635,7 @@
         const smoothingSlider = document.getElementById('smoothing');
         const sensitivitySlider = document.getElementById('sensitivity');
         const windowSizeSlider = document.getElementById('windowSize');
+        const invertFrequencyCheckbox = document.getElementById('invertFrequency');
 
         // Initialize Web Audio
         function initAudio() {
@@ -972,9 +984,14 @@
 
                     // Calculate adaptive range
                     const range = windowStats.max - windowStats.min;
-                    const normalizedDeviation = range > 0.01
+                    let normalizedDeviation = range > 0.01
                         ? Math.max(-1, Math.min(1, sensitiveDeviation / (range / 2)))
                         : 0;
+
+                    // Apply frequency inversion if enabled
+                    if (invertFrequency) {
+                        normalizedDeviation = -normalizedDeviation;
+                    }
 
                     // Map to frequency using median as center
                     frequency = centerFreq + (normalizedDeviation * freqRange / 2);
@@ -990,7 +1007,13 @@
                     const deviation = rawSignal - baseline;
                     smoothedDeviation = smoothingFactor * deviation + (1 - smoothingFactor) * smoothedDeviation;
                     const sensitiveDeviation = smoothedDeviation * sensitivity;
-                    const normalizedDeviation = Math.max(-1, Math.min(1, sensitiveDeviation / 0.3));
+                    let normalizedDeviation = Math.max(-1, Math.min(1, sensitiveDeviation / 0.3));
+
+                    // Apply frequency inversion if enabled
+                    if (invertFrequency) {
+                        normalizedDeviation = -normalizedDeviation;
+                    }
+
                     frequency = centerFreq + (normalizedDeviation * freqRange / 2);
 
                     const absDeviation = Math.abs(sensitiveDeviation);
@@ -1086,6 +1109,10 @@
         windowSizeSlider.addEventListener('input', (e) => {
             windowSize = parseInt(e.target.value);
             document.getElementById('windowSizeValue').textContent = windowSize + 's';
+        });
+
+        invertFrequencyCheckbox.addEventListener('change', (e) => {
+            invertFrequency = e.target.checked;
         });
 
         // Prevent scrolling on iOS
