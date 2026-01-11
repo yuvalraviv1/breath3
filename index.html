@@ -457,6 +457,10 @@
                     <span class="readout-value" id="volume">0.00</span>
                 </div>
                 <div class="readout">
+                    <span class="readout-label">Pan</span>
+                    <span class="readout-value" id="panPosition">C</span>
+                </div>
+                <div class="readout">
                     <span class="readout-label">Window Min</span>
                     <span class="readout-value" id="windowMin">--</span>
                 </div>
@@ -561,6 +565,16 @@
                     <label for="invertFrequency">Invert (Inhale = High Frequency)</label>
                 </div>
             </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Stereo Width</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="stereoWidth" min="0" max="1" value="0.3" step="0.05">
+                    <span class="slider-value" id="stereoWidthValue">0.30</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -569,6 +583,7 @@
         let audioContext = null;
         let oscillator = null;
         let gainNode = null;
+        let stereoPanner = null;
         let isRunning = false;
         let isCalibrating = false;
         let calibrationCollecting = false; // Start collecting samples after initial 3 seconds
@@ -599,6 +614,7 @@
         let smoothingFactor = 0.1; // Reduced for faster response
         let sensitivity = 0.1; // Sensitivity multiplier (higher = more sensitive)
         let invertFrequency = true; // Invert frequency mapping (inhale = high freq)
+        let stereoWidth = 0.3; // Stereo panning intensity (0-1)
 
         // DOM elements
         const statusEl = document.getElementById('status');
@@ -626,6 +642,7 @@
         const windowMinEl = document.getElementById('windowMin');
         const windowMaxEl = document.getElementById('windowMax');
         const windowMedianEl = document.getElementById('windowMedian');
+        const panPositionEl = document.getElementById('panPosition');
 
         // Settings sliders
         const minFreqSlider = document.getElementById('minFreq');
@@ -636,6 +653,7 @@
         const sensitivitySlider = document.getElementById('sensitivity');
         const windowSizeSlider = document.getElementById('windowSize');
         const invertFrequencyCheckbox = document.getElementById('invertFrequency');
+        const stereoWidthSlider = document.getElementById('stereoWidth');
 
         // Initialize Web Audio
         function initAudio() {
@@ -643,13 +661,16 @@
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 oscillator = audioContext.createOscillator();
                 gainNode = audioContext.createGain();
+                stereoPanner = audioContext.createStereoPanner();
 
                 oscillator.type = 'sine';
                 oscillator.frequency.value = 350;
                 gainNode.gain.value = 0;
+                stereoPanner.pan.value = 0;
 
                 oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
+                gainNode.connect(stereoPanner);
+                stereoPanner.connect(audioContext.destination);
 
                 oscillator.start();
                 return true;
@@ -1026,6 +1047,16 @@
                 oscillator.frequency.value = frequency;
                 gainNode.gain.value = gain;
 
+                // Update stereo panning based on breathing phase
+                const panValue = Math.max(-1, Math.min(1, smoothedDeviation * stereoWidth));
+                stereoPanner.pan.value = panValue;
+
+                // Update pan position display
+                let panLabel = 'C';
+                if (panValue < -0.1) panLabel = panValue < -0.5 ? 'LL' : 'L';
+                else if (panValue > 0.1) panLabel = panValue > 0.5 ? 'RR' : 'R';
+                panPositionEl.textContent = panLabel;
+
                 // Update display
                 deviationEl.textContent = smoothedDeviation.toFixed(2);
                 frequencyEl.textContent = Math.round(frequency) + ' Hz';
@@ -1114,6 +1145,11 @@
 
         invertFrequencyCheckbox.addEventListener('change', (e) => {
             invertFrequency = e.target.checked;
+        });
+
+        stereoWidthSlider.addEventListener('input', (e) => {
+            stereoWidth = parseFloat(e.target.value);
+            document.getElementById('stereoWidthValue').textContent = stereoWidth.toFixed(2);
         });
 
         // Prevent scrolling on iOS
