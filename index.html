@@ -425,6 +425,18 @@
 
             <div class="readouts">
                 <div class="readout">
+                    <span class="readout-label">Raw X</span>
+                    <span class="readout-value" id="rawX">0.00</span>
+                </div>
+                <div class="readout">
+                    <span class="readout-label">Raw Y</span>
+                    <span class="readout-value" id="rawY">0.00</span>
+                </div>
+                <div class="readout">
+                    <span class="readout-label">Raw Z</span>
+                    <span class="readout-value" id="rawZ">0.00</span>
+                </div>
+                <div class="readout">
                     <span class="readout-label">PCA Signal</span>
                     <span class="readout-value" id="rawValue">0.00</span>
                 </div>
@@ -439,6 +451,18 @@
                 <div class="readout">
                     <span class="readout-label">Volume</span>
                     <span class="readout-value" id="volume">0.00</span>
+                </div>
+                <div class="readout">
+                    <span class="readout-label">Window Min</span>
+                    <span class="readout-value" id="windowMin">--</span>
+                </div>
+                <div class="readout">
+                    <span class="readout-label">Window Max</span>
+                    <span class="readout-value" id="windowMax">--</span>
+                </div>
+                <div class="readout">
+                    <span class="readout-label">Window Median</span>
+                    <span class="readout-value" id="windowMedian">--</span>
                 </div>
             </div>
 
@@ -513,6 +537,16 @@
                     <span class="slider-value" id="sensitivityValue">0.1x</span>
                 </div>
             </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Window Size</span>
+                </div>
+                <div class="slider-container">
+                    <input type="range" id="windowSize" min="3" max="30" value="20" step="1">
+                    <span class="slider-value" id="windowSizeValue">20s</span>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -532,6 +566,16 @@
         // PCA components
         let principalComponent = [0, 0, 1]; // Default to Z-axis
         let meanVector = [0, 0, 0];
+
+        // Sliding window for adaptive range
+        let windowSize = 20; // seconds (configurable 3-30)
+        let signalWindow = []; // Array of {timestamp, value} objects
+        let windowStats = {
+            min: 0,
+            max: 0,
+            median: 0,
+            isReady: false // True after window fills initially
+        };
 
         // Settings
         let minFreq = 80;
@@ -561,6 +605,12 @@
         const weightX = document.getElementById('weightX');
         const weightY = document.getElementById('weightY');
         const weightZ = document.getElementById('weightZ');
+        const rawX = document.getElementById('rawX');
+        const rawY = document.getElementById('rawY');
+        const rawZ = document.getElementById('rawZ');
+        const windowMinEl = document.getElementById('windowMin');
+        const windowMaxEl = document.getElementById('windowMax');
+        const windowMedianEl = document.getElementById('windowMedian');
 
         // Settings sliders
         const minFreqSlider = document.getElementById('minFreq');
@@ -569,6 +619,7 @@
         const maxGainSlider = document.getElementById('maxGain');
         const smoothingSlider = document.getElementById('smoothing');
         const sensitivitySlider = document.getElementById('sensitivity');
+        const windowSizeSlider = document.getElementById('windowSize');
 
         // Initialize Web Audio
         function initAudio() {
@@ -687,6 +738,10 @@
             calibrationSamples = [];
             smoothedDeviation = 0;
             gainNode.gain.value = 0;
+
+            // Reset sliding window on recalibration
+            signalWindow = [];
+            windowStats = { min: 0, max: 0, median: 0, isReady: false };
 
             updateStatus('Calibrating... 10s remaining');
 
@@ -835,6 +890,33 @@
             barZ.style.width = ((absWeights[2] / maxWeight) * 100) + '%';
         }
 
+        // Update sliding window with new PCA signal sample
+        function updateSlidingWindow(signalValue) {
+            const now = Date.now();
+
+            // Add new sample
+            signalWindow.push({
+                timestamp: now,
+                value: signalValue
+            });
+
+            // Remove samples older than window size
+            const cutoffTime = now - (windowSize * 1000);
+            signalWindow = signalWindow.filter(sample => sample.timestamp >= cutoffTime);
+
+            // Calculate statistics if we have enough samples
+            if (signalWindow.length > 0) {
+                const values = signalWindow.map(s => s.value).sort((a, b) => a - b);
+
+                windowStats.min = values[0];
+                windowStats.max = values[values.length - 1];
+                windowStats.median = values[Math.floor(values.length / 2)];
+
+                // Consider window ready after 3 seconds of data
+                windowStats.isReady = signalWindow.length >= (3 * 60); // ~60 Hz * 3 seconds
+            }
+        }
+
         // Motion handler
         function handleMotion(event) {
             if (!event.accelerationIncludingGravity) return;
@@ -843,6 +925,11 @@
             const x = accel.x || 0;
             const y = accel.y || 0;
             const z = accel.z || 0;
+
+            // Display raw accelerometer values
+            rawX.textContent = x.toFixed(2);
+            rawY.textContent = y.toFixed(2);
+            rawZ.textContent = z.toFixed(2);
 
             if (isCalibrating && calibrationCollecting) {
                 // Collect 3D samples during calibration
@@ -854,26 +941,58 @@
                 // Update raw signal display
                 rawValueEl.textContent = rawSignal.toFixed(2);
 
-                // Calculate deviation from baseline
-                const deviation = rawSignal - baseline;
+                // Update sliding window
+                updateSlidingWindow(rawSignal);
 
-                // Apply exponential smoothing
-                smoothedDeviation = smoothingFactor * deviation + (1 - smoothingFactor) * smoothedDeviation;
+                // Update window stats display
+                if (windowStats.isReady) {
+                    windowMinEl.textContent = windowStats.min.toFixed(2);
+                    windowMaxEl.textContent = windowStats.max.toFixed(2);
+                    windowMedianEl.textContent = windowStats.median.toFixed(2);
+                }
 
-                // Apply sensitivity multiplier to deviation
-                const sensitiveDeviation = smoothedDeviation * sensitivity;
-
-                // Map to frequency (deviation → pitch)
+                // Use adaptive range if window is ready, otherwise fallback to fixed range
+                let frequency, gain, normalizedAbsDeviation;
                 const freqRange = maxFreq - minFreq;
                 const centerFreq = minFreq + freqRange / 2;
-                // High sensitivity for subtle belly breathing (±0.3 m/s² base range + multiplier)
-                const normalizedDeviation = Math.max(-1, Math.min(1, sensitiveDeviation / 0.3));
-                const frequency = centerFreq + (normalizedDeviation * freqRange / 2);
 
-                // Map absolute deviation to gain (volume)
-                const absDeviation = Math.abs(sensitiveDeviation);
-                const normalizedAbsDeviation = Math.min(1, absDeviation / 0.3);
-                const gain = minGain + normalizedAbsDeviation * (maxGain - minGain);
+                if (windowStats.isReady) {
+                    // Adaptive mode: use dynamic median as center and window range
+                    const deviation = rawSignal - windowStats.median;
+
+                    // Apply smoothing
+                    smoothedDeviation = smoothingFactor * deviation + (1 - smoothingFactor) * smoothedDeviation;
+
+                    // Apply sensitivity
+                    const sensitiveDeviation = smoothedDeviation * sensitivity;
+
+                    // Calculate adaptive range
+                    const range = windowStats.max - windowStats.min;
+                    const normalizedDeviation = range > 0.01
+                        ? Math.max(-1, Math.min(1, sensitiveDeviation / (range / 2)))
+                        : 0;
+
+                    // Map to frequency using median as center
+                    frequency = centerFreq + (normalizedDeviation * freqRange / 2);
+
+                    // Map absolute deviation to gain (volume)
+                    const absDeviation = Math.abs(sensitiveDeviation);
+                    normalizedAbsDeviation = range > 0.01
+                        ? Math.min(1, absDeviation / (range / 2))
+                        : 0;
+                    gain = minGain + normalizedAbsDeviation * (maxGain - minGain);
+                } else {
+                    // Fallback mode: use original fixed range during warmup
+                    const deviation = rawSignal - baseline;
+                    smoothedDeviation = smoothingFactor * deviation + (1 - smoothingFactor) * smoothedDeviation;
+                    const sensitiveDeviation = smoothedDeviation * sensitivity;
+                    const normalizedDeviation = Math.max(-1, Math.min(1, sensitiveDeviation / 0.3));
+                    frequency = centerFreq + (normalizedDeviation * freqRange / 2);
+
+                    const absDeviation = Math.abs(sensitiveDeviation);
+                    normalizedAbsDeviation = Math.min(1, absDeviation / 0.3);
+                    gain = minGain + normalizedAbsDeviation * (maxGain - minGain);
+                }
 
                 // Update audio
                 oscillator.frequency.value = frequency;
@@ -958,6 +1077,11 @@
         sensitivitySlider.addEventListener('input', (e) => {
             sensitivity = parseFloat(e.target.value);
             document.getElementById('sensitivityValue').textContent = sensitivity.toFixed(1) + 'x';
+        });
+
+        windowSizeSlider.addEventListener('input', (e) => {
+            windowSize = parseInt(e.target.value);
+            document.getElementById('windowSizeValue').textContent = windowSize + 's';
         });
 
         // Prevent scrolling on iOS
