@@ -1094,15 +1094,26 @@
 
                 // Detect turning points for inhale/exhale ticks
                 const slope = smoothedDeviation - prevSmoothedDeviation;
-                const slopeSign = slope > 0.0005 ? 1 : slope < -0.0005 ? -1 : 0;
-                const tickMagnitudeNormalized = windowStats.isReady
-                    ? Math.min(1, Math.abs(smoothedDeviation) / Math.max(0.0001, (windowStats.max - windowStats.min) / 2))
+
+                // Require minimum rate of change to filter noise and gradual drift
+                const absSlopeThreshold = 0.002;
+                const slopeSign = Math.abs(slope) > absSlopeThreshold
+                    ? (slope > 0 ? 1 : -1)
                     : 0;
+
+                // Better magnitude normalization (increased floor from 0.0001 to 0.05)
+                const tickMagnitudeNormalized = windowStats.isReady
+                    ? Math.min(1, Math.abs(smoothedDeviation) / Math.max(0.05, (windowStats.max - windowStats.min) / 2))
+                    : 0;
+
+                // Adaptive cooldown based on breathing range
+                const normalizedRange = windowStats.isReady ? (windowStats.max - windowStats.min) : 0.3;
+                const adaptiveCooldown = Math.max(600, Math.min(1500, 1000 / Math.max(0.5, normalizedRange)));
 
                 if (ticksEnabled && windowStats.isReady) {
                     const now = performance.now();
                     if (slopeSign !== 0 && prevSlope !== 0 && slopeSign !== prevSlope && tickMagnitudeNormalized >= tickThreshold) {
-                        if (now - lastTickTime >= tickCooldownMs) {
+                        if (now - lastTickTime >= adaptiveCooldown) {
                             if (prevSlope > 0 && slopeSign < 0) {
                                 playBellTick(inhaleTickFreq);
                             } else if (prevSlope < 0 && slopeSign > 0) {
