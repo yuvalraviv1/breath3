@@ -96,6 +96,12 @@
             background: rgba(77, 168, 218, 0.25);
         }
 
+        .button.secondary.active {
+            background: rgba(77, 168, 218, 0.3);
+            border-color: #4da8da;
+            color: #4da8da;
+        }
+
         .button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -386,6 +392,7 @@
 
         <div id="mainControls" class="hidden">
             <button id="recalibrateBtn" class="button secondary">Recalibrate</button>
+            <button id="stereoBtn" class="button secondary">Stereo: Off</button>
 
             <div class="activity-indicator">
                 <div id="activityBar" class="activity-bar"></div>
@@ -587,6 +594,7 @@
         let isRunning = false;
         let isCalibrating = false;
         let calibrationCollecting = false; // Start collecting samples after initial 3 seconds
+        let stereoEnabled = false; // Stereo panning is off by default
         let calibrationSamples = []; // Array of [x, y, z] samples
         let baseline = 0;
         let smoothedDeviation = 0;
@@ -643,6 +651,7 @@
         const windowMaxEl = document.getElementById('windowMax');
         const windowMedianEl = document.getElementById('windowMedian');
         const panPositionEl = document.getElementById('panPosition');
+        const stereoBtn = document.getElementById('stereoBtn');
 
         // Settings sliders
         const minFreqSlider = document.getElementById('minFreq');
@@ -1048,13 +1057,18 @@
                 gainNode.gain.value = gain;
 
                 // Update stereo panning based on breathing phase
-                const panValue = Math.max(-1, Math.min(1, smoothedDeviation * stereoWidth));
-                stereoPanner.pan.value = panValue;
+                let panValue = 0;
+                if (stereoEnabled) {
+                    panValue = Math.max(-1, Math.min(1, smoothedDeviation * stereoWidth));
+                    stereoPanner.pan.value = panValue;
+                }
 
                 // Update pan position display
                 let panLabel = 'C';
-                if (panValue < -0.1) panLabel = panValue < -0.5 ? 'LL' : 'L';
-                else if (panValue > 0.1) panLabel = panValue > 0.5 ? 'RR' : 'R';
+                if (stereoEnabled) {
+                    if (panValue < -0.1) panLabel = panValue < -0.5 ? 'LL' : 'L';
+                    else if (panValue > 0.1) panLabel = panValue > 0.5 ? 'RR' : 'R';
+                }
                 panPositionEl.textContent = panLabel;
 
                 // Update display
@@ -1088,6 +1102,16 @@
         recalibrateBtn.addEventListener('click', () => {
             if (isRunning || isCalibrating) {
                 startCalibration();
+            }
+        });
+
+        stereoBtn.addEventListener('click', () => {
+            stereoEnabled = !stereoEnabled;
+            stereoBtn.textContent = stereoEnabled ? 'Stereo: On' : 'Stereo: Off';
+            stereoBtn.classList.toggle('active', stereoEnabled);
+            if (!stereoEnabled) {
+                stereoPanner.pan.value = 0;
+                panPositionEl.textContent = 'C';
             }
         });
 
