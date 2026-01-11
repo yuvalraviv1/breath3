@@ -557,7 +557,7 @@
                     <span>Frequency Direction</span>
                 </div>
                 <div class="checkbox-group">
-                    <input type="checkbox" id="invertFrequency">
+                    <input type="checkbox" id="invertFrequency" checked>
                     <label for="invertFrequency">Invert (Inhale = High Frequency)</label>
                 </div>
             </div>
@@ -598,7 +598,7 @@
         let maxGain = 0.6;
         let smoothingFactor = 0.1; // Reduced for faster response
         let sensitivity = 0.1; // Sensitivity multiplier (higher = more sensitive)
-        let invertFrequency = false; // Invert frequency mapping (inhale = high freq)
+        let invertFrequency = true; // Invert frequency mapping (inhale = high freq)
 
         // DOM elements
         const statusEl = document.getElementById('status');
