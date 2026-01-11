@@ -374,7 +374,7 @@
 <body>
     <div class="container">
         <h1>Breath3</h1>
-        <div class="subtitle">Belly Motion Audio Feedback</div>
+        <div class="subtitle">PCA-Based Motion Audio</div>
 
         <div id="status" class="status">Tap Start to begin</div>
 
@@ -389,29 +389,43 @@
 
             <div class="controls">
                 <div class="control-group">
-                    <span class="control-label">Sensor Axis</span>
-                    <div class="axis-selector">
-                        <button class="axis-btn" data-axis="x">X</button>
-                        <button class="axis-btn" data-axis="y">Y</button>
-                        <button class="axis-btn active" data-axis="z">Z</button>
+                    <span class="control-label">PCA Components</span>
+                    <div id="pcaInfo" style="font-size: 0.85rem; color: #4da8da; padding: 8px; background: rgba(77, 168, 218, 0.1); border-radius: 6px; font-family: 'Courier New', monospace;">
+                        [-, -, -]
                     </div>
                 </div>
 
                 <div class="control-group">
-                    <div class="checkbox-group">
-                        <input type="checkbox" id="invertCheckbox">
-                        <label for="invertCheckbox">Invert Axis</label>
+                    <span class="control-label">Axis Contributions</span>
+                    <div id="axisWeights" style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 20px; color: #888;">X:</span>
+                            <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; position: relative;">
+                                <div id="barX" style="position: absolute; height: 100%; background: #4da8da; border-radius: 3px; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                            <span id="weightX" style="width: 50px; text-align: right; color: #4da8da; font-size: 0.85rem;">0.00</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 20px; color: #888;">Y:</span>
+                            <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; position: relative;">
+                                <div id="barY" style="position: absolute; height: 100%; background: #5bd4a8; border-radius: 3px; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                            <span id="weightY" style="width: 50px; text-align: right; color: #5bd4a8; font-size: 0.85rem;">0.00</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span style="width: 20px; color: #888;">Z:</span>
+                            <div style="flex: 1; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; position: relative;">
+                                <div id="barZ" style="position: absolute; height: 100%; background: #da4d9a; border-radius: 3px; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                            <span id="weightZ" style="width: 50px; text-align: right; color: #da4d9a; font-size: 0.85rem;">0.00</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
             <div class="readouts">
                 <div class="readout">
-                    <span class="readout-label">Current Axis</span>
-                    <span class="readout-value" id="currentAxis">Z</span>
-                </div>
-                <div class="readout">
-                    <span class="readout-label">Raw Value</span>
+                    <span class="readout-label">PCA Signal</span>
                     <span class="readout-value" id="rawValue">0.00</span>
                 </div>
                 <div class="readout">
@@ -510,12 +524,14 @@
         let isRunning = false;
         let isCalibrating = false;
         let calibrationCollecting = false; // Start collecting samples after initial 3 seconds
-        let calibrationSamples = [];
+        let calibrationSamples = []; // Array of [x, y, z] samples
         let baseline = 0;
-        let currentAxis = 'z';
-        let invertAxis = false;
         let smoothedDeviation = 0;
         let wakeLock = null;
+
+        // PCA components
+        let principalComponent = [0, 0, 1]; // Default to Z-axis
+        let meanVector = [0, 0, 0];
 
         // Settings
         let minFreq = 80;
@@ -530,9 +546,6 @@
         const startBtn = document.getElementById('startBtn');
         const mainControls = document.getElementById('mainControls');
         const recalibrateBtn = document.getElementById('recalibrateBtn');
-        const axisBtns = document.querySelectorAll('.axis-btn');
-        const invertCheckbox = document.getElementById('invertCheckbox');
-        const currentAxisEl = document.getElementById('currentAxis');
         const rawValueEl = document.getElementById('rawValue');
         const deviationEl = document.getElementById('deviation');
         const frequencyEl = document.getElementById('frequency');
@@ -541,6 +554,13 @@
         const settingsModal = document.getElementById('settingsModal');
         const modalClose = document.getElementById('modalClose');
         const activityBar = document.getElementById('activityBar');
+        const pcaInfo = document.getElementById('pcaInfo');
+        const barX = document.getElementById('barX');
+        const barY = document.getElementById('barY');
+        const barZ = document.getElementById('barZ');
+        const weightX = document.getElementById('weightX');
+        const weightY = document.getElementById('weightY');
+        const weightZ = document.getElementById('weightZ');
 
         // Settings sliders
         const minFreqSlider = document.getElementById('minFreq');
@@ -702,12 +722,117 @@
                 return;
             }
 
-            // Calculate baseline
-            baseline = calibrationSamples.reduce((a, b) => a + b, 0) / calibrationSamples.length;
+            // Compute PCA
+            computePCA();
+
+            // Calculate baseline signal
+            let signalSum = 0;
+            for (const sample of calibrationSamples) {
+                signalSum += projectToPCA(sample[0], sample[1], sample[2]);
+            }
+            baseline = signalSum / calibrationSamples.length;
+
             isCalibrating = false;
             isRunning = true;
 
             updateStatus('Ready - Breathe naturally', false);
+        }
+
+        // Compute PCA from calibration data
+        function computePCA() {
+            const data = calibrationSamples;
+            const n = data.length;
+
+            // 1. Compute mean
+            meanVector = [0, 0, 0];
+            for (const sample of data) {
+                meanVector[0] += sample[0];
+                meanVector[1] += sample[1];
+                meanVector[2] += sample[2];
+            }
+            meanVector = meanVector.map(v => v / n);
+
+            // 2. Center the data
+            const centered = data.map(sample => [
+                sample[0] - meanVector[0],
+                sample[1] - meanVector[1],
+                sample[2] - meanVector[2]
+            ]);
+
+            // 3. Compute covariance matrix
+            const cov = [
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0]
+            ];
+
+            for (const sample of centered) {
+                for (let i = 0; i < 3; i++) {
+                    for (let j = 0; j < 3; j++) {
+                        cov[i][j] += sample[i] * sample[j];
+                    }
+                }
+            }
+
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    cov[i][j] /= (n - 1);
+                }
+            }
+
+            // 4. Power iteration to find dominant eigenvector
+            principalComponent = powerIteration(cov);
+
+            // 5. Update UI with PCA info
+            updatePCADisplay();
+        }
+
+        // Power iteration algorithm to find dominant eigenvector
+        function powerIteration(matrix, iterations = 50) {
+            // Start with a random vector
+            let v = [1, 1, 1];
+            let norm = Math.sqrt(v[0]**2 + v[1]**2 + v[2]**2);
+            v = v.map(x => x / norm);
+
+            for (let iter = 0; iter < iterations; iter++) {
+                // Multiply: v = matrix * v
+                const newV = [
+                    matrix[0][0] * v[0] + matrix[0][1] * v[1] + matrix[0][2] * v[2],
+                    matrix[1][0] * v[0] + matrix[1][1] * v[1] + matrix[1][2] * v[2],
+                    matrix[2][0] * v[0] + matrix[2][1] * v[1] + matrix[2][2] * v[2]
+                ];
+
+                // Normalize
+                norm = Math.sqrt(newV[0]**2 + newV[1]**2 + newV[2]**2);
+                if (norm < 0.0001) break;
+                v = newV.map(x => x / norm);
+            }
+
+            return v;
+        }
+
+        // Project 3D acceleration onto principal component
+        function projectToPCA(x, y, z) {
+            const pc = principalComponent;
+            return pc[0] * x + pc[1] * y + pc[2] * z;
+        }
+
+        // Update PCA display in UI
+        function updatePCADisplay() {
+            const pc = principalComponent;
+            pcaInfo.textContent = `[${pc[0].toFixed(3)}, ${pc[1].toFixed(3)}, ${pc[2].toFixed(3)}]`;
+
+            // Update weights and bars
+            const absWeights = [Math.abs(pc[0]), Math.abs(pc[1]), Math.abs(pc[2])];
+            const maxWeight = Math.max(...absWeights);
+
+            weightX.textContent = pc[0].toFixed(3);
+            weightY.textContent = pc[1].toFixed(3);
+            weightZ.textContent = pc[2].toFixed(3);
+
+            barX.style.width = ((absWeights[0] / maxWeight) * 100) + '%';
+            barY.style.width = ((absWeights[1] / maxWeight) * 100) + '%';
+            barZ.style.width = ((absWeights[2] / maxWeight) * 100) + '%';
         }
 
         // Motion handler
@@ -715,32 +840,22 @@
             if (!event.accelerationIncludingGravity) return;
 
             const accel = event.accelerationIncludingGravity;
-            let value = 0;
-
-            switch (currentAxis) {
-                case 'x':
-                    value = accel.x || 0;
-                    break;
-                case 'y':
-                    value = accel.y || 0;
-                    break;
-                case 'z':
-                    value = accel.z || 0;
-                    break;
-            }
-
-            if (invertAxis) {
-                value = -value;
-            }
-
-            // Update raw value display
-            rawValueEl.textContent = value.toFixed(2);
+            const x = accel.x || 0;
+            const y = accel.y || 0;
+            const z = accel.z || 0;
 
             if (isCalibrating && calibrationCollecting) {
-                calibrationSamples.push(value);
+                // Collect 3D samples during calibration
+                calibrationSamples.push([x, y, z]);
             } else if (isRunning) {
+                // Project onto principal component
+                const rawSignal = projectToPCA(x, y, z);
+
+                // Update raw signal display
+                rawValueEl.textContent = rawSignal.toFixed(2);
+
                 // Calculate deviation from baseline
-                const deviation = value - baseline;
+                const deviation = rawSignal - baseline;
 
                 // Apply exponential smoothing
                 smoothedDeviation = smoothingFactor * deviation + (1 - smoothingFactor) * smoothedDeviation;
@@ -793,28 +908,6 @@
         startBtn.addEventListener('click', start);
 
         recalibrateBtn.addEventListener('click', () => {
-            if (isRunning || isCalibrating) {
-                startCalibration();
-            }
-        });
-
-        axisBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                axisBtns.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentAxis = btn.dataset.axis;
-                currentAxisEl.textContent = currentAxis.toUpperCase();
-
-                // Recalibrate when axis changes
-                if (isRunning || isCalibrating) {
-                    startCalibration();
-                }
-            });
-        });
-
-        invertCheckbox.addEventListener('change', (e) => {
-            invertAxis = e.target.checked;
-            // Recalibrate when invert changes
             if (isRunning || isCalibrating) {
                 startCalibration();
             }
