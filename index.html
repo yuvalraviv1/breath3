@@ -104,12 +104,12 @@
         .controls {
             background: rgba(255, 255, 255, 0.05);
             border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 12px;
+            margin-bottom: 12px;
         }
 
         .control-group {
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
 
         .control-group:last-child {
@@ -119,8 +119,8 @@
         .control-label {
             display: block;
             color: #aaa;
-            font-size: 0.85rem;
-            margin-bottom: 8px;
+            font-size: 0.7rem;
+            margin-bottom: 6px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -173,16 +173,20 @@
         .readouts {
             background: rgba(0, 0, 0, 0.3);
             border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 12px;
+            margin-bottom: 15px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
         }
 
         .readout {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 6px;
         }
 
         .readout:last-child {
@@ -191,12 +195,12 @@
 
         .readout-label {
             color: #888;
-            font-size: 0.9rem;
+            font-size: 0.75rem;
         }
 
         .readout-value {
             font-weight: 600;
-            font-size: 1.1rem;
+            font-size: 0.9rem;
             color: #4da8da;
             font-variant-numeric: tabular-nums;
         }
@@ -341,10 +345,10 @@
 
         .activity-indicator {
             width: 100%;
-            height: 8px;
+            height: 6px;
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 4px;
-            margin-bottom: 20px;
+            border-radius: 3px;
+            margin-bottom: 12px;
             overflow: hidden;
             position: relative;
         }
