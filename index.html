@@ -250,8 +250,9 @@
             padding: 24px;
             max-width: 500px;
             width: 100%;
-            max-height: 80vh;
+            max-height: 85vh;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
 
@@ -656,6 +657,7 @@
         const settingsToggle = document.getElementById('settingsToggle');
         const settingsModal = document.getElementById('settingsModal');
         const modalClose = document.getElementById('modalClose');
+        const modalContent = document.querySelector('.modal-content');
         const activityBar = document.getElementById('activityBar');
         const barX = document.getElementById('barX');
         const barY = document.getElementById('barY');
@@ -1193,6 +1195,13 @@
                 settingsModal.classList.remove('active');
             }
         });
+
+        // Allow modal to scroll on touch devices despite body-level preventDefault
+        if (modalContent) {
+            modalContent.addEventListener('touchmove', (e) => {
+                e.stopPropagation();
+            }, { passive: true });
+        }
 
         // Settings sliders
         minFreqSlider.addEventListener('input', (e) => {
