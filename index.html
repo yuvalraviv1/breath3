@@ -642,7 +642,7 @@
         let ticksEnabled = true;
         let inhaleTickFreq = 900;
         let exhaleTickFreq = 520;
-        let tickThreshold = 0.7; // normalizedAbsDeviation gate
+        let tickThreshold = 0.35; // normalized gate on absolute deviation
         let tickCooldownMs = 1000;
 
         // DOM elements
@@ -1095,10 +1095,13 @@
                 // Detect turning points for inhale/exhale ticks
                 const slope = smoothedDeviation - prevSmoothedDeviation;
                 const slopeSign = slope > 0.0005 ? 1 : slope < -0.0005 ? -1 : 0;
+                const tickMagnitudeNormalized = windowStats.isReady
+                    ? Math.min(1, Math.abs(smoothedDeviation) / Math.max(0.0001, (windowStats.max - windowStats.min) / 2))
+                    : 0;
 
                 if (ticksEnabled && windowStats.isReady) {
                     const now = performance.now();
-                    if (slopeSign !== 0 && prevSlope !== 0 && slopeSign !== prevSlope && normalizedAbsDeviation >= tickThreshold) {
+                    if (slopeSign !== 0 && prevSlope !== 0 && slopeSign !== prevSlope && tickMagnitudeNormalized >= tickThreshold) {
                         if (now - lastTickTime >= tickCooldownMs) {
                             if (prevSlope > 0 && slopeSign < 0) {
                                 playBellTick(inhaleTickFreq);
