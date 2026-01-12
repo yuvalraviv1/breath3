@@ -20,7 +20,7 @@ A single-page web application that transforms body movement into sound using Pri
 
 ## Usage
 
-1. Open [https://yuvalraviv1.github.io/breath3](https://yuvalraviv1.github.io/breath3) in iPhone Safari
+1. Open [https://breath3.netlify.app) in iPhone Safari
 2. Tap "Start" and grant motion sensor permissions
 3. Follow calibration ticks (10 seconds) - breathe naturally
 4. Listen to audio feedback as you breathe
