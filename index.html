@@ -45,6 +45,18 @@
             margin-bottom: 2rem;
         }
 
+        .instructions {
+            list-style: disc;
+            padding-left: 1.2rem;
+            margin: 0 0 1.5rem;
+            color: #a8a8a8;
+            font-size: 0.95rem;
+        }
+
+        .instructions li {
+            margin-bottom: 0.4rem;
+        }
+
         .status {
             background: rgba(77, 168, 218, 0.1);
             border: 1px solid rgba(77, 168, 218, 0.3);
@@ -385,6 +397,13 @@
 <body>
     <div class="container">
         <h1>Breath3</h1>
+
+        <ul class="instructions">
+            <li data-iphone>Open in Safari and allow motion/audio.</li>
+            <li>Place the phone on your belly and tap Start.</li>
+            <li>Use headphones and follow the inhale/exhale ticks.</li>
+            <li>Use the 10s calibration to settle into a meditative breath.</li>
+        </ul>
 
         <div id="status" class="status">Tap Start to begin</div>
 
@@ -1207,6 +1226,13 @@
 
         // Event listeners
         startBtn.addEventListener('click', start);
+
+        const isiPhone = /iPhone/i.test(navigator.userAgent);
+        if (!isiPhone) {
+            document.querySelectorAll('[data-iphone]').forEach((el) => {
+                el.classList.add('hidden');
+            });
+        }
 
         recalibrateBtn.addEventListener('click', () => {
             if (isRunning || isCalibrating) {
