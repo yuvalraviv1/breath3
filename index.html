@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen">
-    <title>Breath3 - Belly Motion Audio</title>
+    <title>RespiraTone - Belly Motion Audio</title>
     <style>
         * {
             margin: 0;
@@ -396,7 +396,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Breath3</h1>
+        <h1>RespiraTone</h1>
 
         <ul class="instructions">
             <li data-iphone>Open in Safari and allow motion/audio.</li>
@@ -405,7 +405,7 @@
             <li>Use the 10s calibration to settle into a meditative breath.</li>
         </ul>
 
-        <div id="status" class="status">Ready</div>
+        <div id="status" class="status hidden"></div>
 
         <button id="startBtn" class="button primary">Start</button>
 
@@ -1221,6 +1221,7 @@
         // UI helpers
         function updateStatus(message, isError = false) {
             statusEl.textContent = message;
+            statusEl.classList.remove('hidden');
             if (isError) {
                 statusEl.classList.add('error');
             } else {
