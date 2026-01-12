@@ -664,11 +664,11 @@
         let ticksEnabled = true;
         let inhaleTickFreq = 420;
         let exhaleTickFreq = 840;
-        let tickThreshold = 0.5; // normalized gate on absolute deviation
-        let tickCooldownMs = 1800;
-        let tickFlipConfirmSamples = 4;
-        let tickDeadband = 0.15; // normalized deadband after ticks
-        let tickResetThreshold = 0.2; // normalized return-to-center threshold
+        let tickThreshold = 0.4; // normalized gate on absolute deviation
+        let tickCooldownMs = 1600;
+        let tickFlipConfirmSamples = 3;
+        let tickDeadband = 0.12; // normalized deadband after ticks
+        let tickResetThreshold = 0.35; // normalized return-to-center threshold
 
         // DOM elements
         const statusEl = document.getElementById('status');
