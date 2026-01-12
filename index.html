@@ -633,6 +633,7 @@
         let lastTickTime = 0;
         let lastTickDeviation = 0;
         let slopeHistory = [];
+        let tickArmed = true;
         let wakeLock = null;
 
         // PCA components
@@ -663,10 +664,11 @@
         let ticksEnabled = true;
         let inhaleTickFreq = 420;
         let exhaleTickFreq = 840;
-        let tickThreshold = 0.45; // normalized gate on absolute deviation
-        let tickCooldownMs = 1500;
-        let tickFlipConfirmSamples = 3;
-        let tickDeadband = 0.12; // normalized deadband after ticks
+        let tickThreshold = 0.5; // normalized gate on absolute deviation
+        let tickCooldownMs = 1800;
+        let tickFlipConfirmSamples = 4;
+        let tickDeadband = 0.15; // normalized deadband after ticks
+        let tickResetThreshold = 0.2; // normalized return-to-center threshold
 
         // DOM elements
         const statusEl = document.getElementById('status');
@@ -854,6 +856,7 @@
             lastTickTime = 0;
             lastTickDeviation = 0;
             slopeHistory = [];
+            tickArmed = true;
             gainNode.gain.value = 0;
 
             // Reset sliding window on recalibration
@@ -1160,7 +1163,11 @@
                     const passesDeadband = lastTickTime === 0
                         || Math.abs(smoothedDeviation - lastTickDeviation) >= tickDeadbandValue;
 
-                    if (confirmedSlope !== 0 && prevSlope !== 0 && confirmedSlope !== prevSlope && tickMagnitudeNormalized >= tickThreshold && passesDeadband) {
+                    if (normalizedAbsDeviation <= tickResetThreshold) {
+                        tickArmed = true;
+                    }
+
+                    if (tickArmed && confirmedSlope !== 0 && prevSlope !== 0 && confirmedSlope !== prevSlope && tickMagnitudeNormalized >= tickThreshold && passesDeadband) {
                         if (now - lastTickTime >= adaptiveCooldown) {
                             if (prevSlope > 0 && confirmedSlope < 0) {
                                 playBellTick(inhaleTickFreq);
@@ -1169,6 +1176,7 @@
                             }
                             lastTickTime = now;
                             lastTickDeviation = smoothedDeviation;
+                            tickArmed = false;
                         }
                     }
                     if (confirmedSlope !== 0) {
