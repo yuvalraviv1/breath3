@@ -57,4 +57,4 @@ Access: https://yuvalraviv1.github.io/breath3
 
 ## License
 
-Private repository - all rights reserved.
+All rights reserved. See `LICENSE` for details.
