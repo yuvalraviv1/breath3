@@ -670,6 +670,14 @@
         let tickDeadband = 0.12; // normalized deadband after ticks
         let tickResetThreshold = 0.35; // normalized return-to-center threshold
 
+        // Hybrid breath peak settings
+        let breathPeakThreshold = 0.35; // normalized threshold for peaks
+        let breathGateThreshold = 0.2; // normalized gate for audio
+        let breathPeakCooldownMs = 900;
+        let breathPeakTimes = [];
+        let lastBreathPeakTime = 0;
+        let lastBreathDirection = 0;
+
         // DOM elements
         const statusEl = document.getElementById('status');
         const startBtn = document.getElementById('startBtn');
@@ -1067,7 +1075,7 @@
                 }
 
                 // Use adaptive range if window is ready, otherwise fallback to fixed range
-                let frequency, gain, normalizedAbsDeviation;
+                let frequency, gain, normalizedDeviation, normalizedAbsDeviation;
                 const freqRange = maxFreq - minFreq;
                 const centerFreq = minFreq + freqRange / 2;
 
@@ -1083,41 +1091,22 @@
 
                     // Calculate adaptive range
                     const range = windowStats.max - windowStats.min;
-                    let normalizedDeviation = range > 0.01
+                    normalizedDeviation = range > 0.01
                         ? Math.max(-1, Math.min(1, sensitiveDeviation / (range / 2)))
                         : 0;
 
-                    // Apply frequency inversion if enabled
-                    if (invertFrequency) {
-                        normalizedDeviation = -normalizedDeviation;
-                    }
-
-                    // Map to frequency using median as center
-                    frequency = centerFreq + (normalizedDeviation * freqRange / 2);
-
-                    // Map absolute deviation to gain (volume)
-                    const absDeviation = Math.abs(sensitiveDeviation);
+                    // Map absolute deviation to normalized magnitude
                     normalizedAbsDeviation = range > 0.01
-                        ? Math.min(1, absDeviation / (range / 2))
+                        ? Math.min(1, Math.abs(sensitiveDeviation) / (range / 2))
                         : 0;
-                    gain = minGain + normalizedAbsDeviation * (maxGain - minGain);
                 } else {
                     // Fallback mode: use original fixed range during warmup
                     const deviation = rawSignal - baseline;
                     smoothedDeviation = smoothingFactor * deviation + (1 - smoothingFactor) * smoothedDeviation;
                     const sensitiveDeviation = smoothedDeviation * sensitivity;
-                    let normalizedDeviation = Math.max(-1, Math.min(1, sensitiveDeviation / 0.3));
-
-                    // Apply frequency inversion if enabled
-                    if (invertFrequency) {
-                        normalizedDeviation = -normalizedDeviation;
-                    }
-
-                    frequency = centerFreq + (normalizedDeviation * freqRange / 2);
-
-                    const absDeviation = Math.abs(sensitiveDeviation);
-                    normalizedAbsDeviation = Math.min(1, absDeviation / 0.3);
-                    gain = minGain + normalizedAbsDeviation * (maxGain - minGain);
+                    const range = 0.3;
+                    normalizedDeviation = Math.max(-1, Math.min(1, sensitiveDeviation / range));
+                    normalizedAbsDeviation = Math.min(1, Math.abs(sensitiveDeviation) / range);
                 }
 
                 // Detect turning points for inhale/exhale ticks
@@ -1144,6 +1133,38 @@
                     slopeHistory = [];
                 }
 
+                if (confirmedSlope !== 0) {
+                    lastBreathDirection = confirmedSlope;
+                }
+
+                const now = performance.now();
+                const isBreathPeak = confirmedSlope !== 0 && prevSlope !== 0 && confirmedSlope !== prevSlope
+                    && normalizedAbsDeviation >= breathPeakThreshold
+                    && now - lastBreathPeakTime >= breathPeakCooldownMs;
+
+                if (isBreathPeak) {
+                    lastBreathPeakTime = now;
+                    breathPeakTimes.push(now);
+                }
+
+                breathPeakTimes = breathPeakTimes.filter((time) => now - time <= 60000);
+
+                const gatedAbsDeviation = normalizedAbsDeviation <= breathGateThreshold
+                    ? 0
+                    : (normalizedAbsDeviation - breathGateThreshold) / (1 - breathGateThreshold);
+
+                const phaseDirection = lastBreathDirection !== 0 ? lastBreathDirection : Math.sign(normalizedDeviation);
+                let mappedDeviation = phaseDirection !== 0
+                    ? phaseDirection * gatedAbsDeviation
+                    : Math.sign(normalizedDeviation) * gatedAbsDeviation;
+
+                if (invertFrequency) {
+                    mappedDeviation = -mappedDeviation;
+                }
+
+                frequency = centerFreq + (mappedDeviation * freqRange / 2);
+                gain = minGain + gatedAbsDeviation * (maxGain - minGain);
+
                 // Better magnitude normalization (increased floor from 0.0001 to 0.05)
                 const windowRange = windowStats.isReady ? (windowStats.max - windowStats.min) : 0;
                 const tickMagnitudeNormalized = windowStats.isReady
@@ -1159,7 +1180,6 @@
                     : 0;
 
                 if (ticksEnabled && windowStats.isReady) {
-                    const now = performance.now();
                     const passesDeadband = lastTickTime === 0
                         || Math.abs(smoothedDeviation - lastTickDeviation) >= tickDeadbandValue;
 
@@ -1213,7 +1233,7 @@
                 volumeEl.textContent = gain.toFixed(2);
 
                 // Update activity indicator
-                const activityPercent = normalizedAbsDeviation * 100;
+                const activityPercent = gatedAbsDeviation * 100;
                 activityBar.style.width = activityPercent + '%';
             }
         }
