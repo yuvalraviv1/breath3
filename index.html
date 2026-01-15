@@ -407,11 +407,17 @@
 
         <div id="status" class="status hidden"></div>
 
+        <!-- Placeholder animated GIF for start screen -->
+        <div id="startGif" style="text-align: center; margin-bottom: 20px;">
+            <img src="https://media.giphy.com/media/krP2NRkLqnKEg/giphy.gif" alt="Breathing animation" style="max-width: 200px; border-radius: 12px; opacity: 0.8;">
+        </div>
+
         <button id="startBtn" class="button primary">Start</button>
 
         <div id="mainControls" class="hidden">
             <button id="recalibrateBtn" class="button secondary">Recalibrate</button>
-            <button id="stereoBtn" class="button secondary">Stereo: Off</button>
+            <button id="settingsToggle" class="settings-toggle">⚙️ Advanced Settings</button>
+            <button id="stereoBtn" class="button secondary active">Stereo: On</button>
 
             <div class="activity-indicator">
                 <div id="activityBar" class="activity-bar"></div>
@@ -481,7 +487,6 @@
                 </div>
             </div>
 
-            <button id="settingsToggle" class="settings-toggle">⚙️ Advanced Settings</button>
         </div>
     </div>
 
@@ -588,7 +593,7 @@
                     <span>Phase Ticks</span>
                 </div>
                 <div class="checkbox-group">
-                    <input type="checkbox" id="enableTicks" checked>
+                    <input type="checkbox" id="enableTicks">
                     <label for="enableTicks">Soft bell at inhale/exhale peaks</label>
                 </div>
             </div>
@@ -624,7 +629,7 @@
         let isRunning = false;
         let isCalibrating = false;
         let calibrationCollecting = false; // Start collecting samples after initial 3 seconds
-        let stereoEnabled = false; // Stereo panning is off by default
+        let stereoEnabled = true; // Stereo panning is on by default
         let calibrationSamples = []; // Array of [x, y, z] samples
         let baseline = 0;
         let smoothedDeviation = 0;
@@ -661,7 +666,7 @@
         let stereoWidth = 0.3; // Stereo panning intensity (0-1)
 
         // Tick settings
-        let ticksEnabled = true;
+        let ticksEnabled = false;
         let inhaleTickFreq = 420;
         let exhaleTickFreq = 840;
         let tickThreshold = 0.4; // normalized gate on absolute deviation
@@ -803,6 +808,7 @@
 
             // Show controls
             startBtn.classList.add('hidden');
+            document.getElementById('startGif').classList.add('hidden');
             mainControls.classList.remove('hidden');
         }
 
