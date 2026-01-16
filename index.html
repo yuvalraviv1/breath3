@@ -418,6 +418,7 @@
             <button id="recalibrateBtn" class="button secondary">Recalibrate</button>
             <button id="settingsToggle" class="settings-toggle">⚙️ Advanced Settings</button>
             <button id="stereoBtn" class="button secondary active">Stereo: On</button>
+            <button id="downloadBtn" class="button secondary" style="display: none;">Download Data</button>
 
             <div class="activity-indicator">
                 <div id="activityBar" class="activity-bar"></div>
@@ -617,6 +618,16 @@
                     <span class="slider-value" id="exhaleTickFreqValue">840 Hz</span>
                 </div>
             </div>
+
+            <div class="slider-group">
+                <div class="slider-label">
+                    <span>Data Recording</span>
+                </div>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="recordData">
+                    <label for="recordData">Record accelerometer data to CSV</label>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -675,6 +686,11 @@
         let tickDeadband = 0.12; // normalized deadband after ticks
         let tickResetThreshold = 0.35; // normalized return-to-center threshold
 
+        // Recording state
+        let recordingEnabled = false;
+        let recordedData = [];
+        let recordingStartTime = null;
+
         // DOM elements
         const statusEl = document.getElementById('status');
         const startBtn = document.getElementById('startBtn');
@@ -700,6 +716,8 @@
         const windowMedianEl = document.getElementById('windowMedian');
         const panPositionEl = document.getElementById('panPosition');
         const stereoBtn = document.getElementById('stereoBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const recordDataCheckbox = document.getElementById('recordData');
 
         // Settings sliders
         const minFreqSlider = document.getElementById('minFreq');
@@ -916,6 +934,12 @@
             isCalibrating = false;
             isRunning = true;
 
+            // Reset recording buffer and start time for new session
+            if (recordingEnabled) {
+                recordedData = [];
+                recordingStartTime = Date.now();
+            }
+
             updateStatus('Ready - Breathe naturally', false);
         }
 
@@ -1056,6 +1080,16 @@
                 // Collect 3D samples during calibration
                 calibrationSamples.push([x, y, z]);
             } else if (isRunning) {
+                // Record raw data if enabled
+                if (recordingEnabled && recordingStartTime !== null) {
+                    recordedData.push({
+                        timestamp: Date.now() - recordingStartTime,
+                        x: x,
+                        y: y,
+                        z: z
+                    });
+                }
+
                 // Project onto principal component
                 const rawSignal = projectToPCA(x, y, z);
 
@@ -1346,6 +1380,41 @@
             exhaleTickFreq = parseInt(e.target.value);
             document.getElementById('exhaleTickFreqValue').textContent = exhaleTickFreq + ' Hz';
         });
+
+        // Recording checkbox handler
+        recordDataCheckbox.addEventListener('change', (e) => {
+            recordingEnabled = e.target.checked;
+            if (recordingEnabled) {
+                // Clear previous data when enabling
+                recordedData = [];
+                recordingStartTime = isRunning ? Date.now() : null;
+            }
+            // Show/hide download button based on state
+            downloadBtn.style.display = recordingEnabled ? '' : 'none';
+        });
+
+        // Download button handler
+        downloadBtn.addEventListener('click', downloadRecordedData);
+
+        function downloadRecordedData() {
+            if (recordedData.length === 0) {
+                alert('No data recorded yet. Start a session with recording enabled.');
+                return;
+            }
+
+            let csv = 'timestamp,x,y,z\n';
+            for (const sample of recordedData) {
+                csv += `${sample.timestamp},${sample.x},${sample.y},${sample.z}\n`;
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `breath-data-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
 
         // Prevent scrolling on iOS
         document.body.addEventListener('touchmove', (e) => {
